@@ -1,0 +1,1712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CPB Surveyor — Internal Survey System</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sidebar-w:272px;--header-h:56px;
+  --bg-page:#f6f6f8;--bg-sidebar:#ffffff;--bg-main:#ffffff;--bg-input:#ffffff;
+  --bg-hover:#f0f0f3;--bg-active:#ebebee;--bg-user-bubble:#f3f3f6;--bg-chip:#f0f0f3;
+  --border:#e4e4e8;--border-input:#d2d2d8;
+  --text-primary:#0e0e12;--text-secondary:#68687a;--text-muted:#9898aa;--text-sidebar:#3a3a4a;
+  --accent:#f55036;--accent-light:#fff0ee;--accent-dark:#d93f26;
+  --success:#16a34a;--success-bg:#f0fdf4;
+  --blue:#3b82f6;--blue-light:#eff6ff;
+  --purple:#8b5cf6;--purple-light:#f5f3ff;
+  --green:#10b981;--green-light:#ecfdf5;
+  --orange:#f59e0b;--orange-light:#fffbeb;
+  --shadow-md:0 4px 16px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.04);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.12),0 4px 12px rgba(0,0,0,.06);
+  --mono:'JetBrains Mono',monospace;--sans:'Sora',sans-serif;--radius:14px;--radius-sm:9px;
+}
+[data-theme="dark"]{
+  --bg-page:#0c0c0f;--bg-sidebar:#111114;--bg-main:#16161a;--bg-input:#1d1d22;
+  --bg-hover:#1d1d22;--bg-active:#252528;--bg-user-bubble:#1d1d22;--bg-chip:#1d1d22;
+  --border:#242428;--border-input:#303038;
+  --text-primary:#eeeef4;--text-secondary:#88889a;--text-muted:#52526a;--text-sidebar:#bebece;
+  --accent:#f55036;--accent-light:#28130e;--accent-dark:#ff6a50;
+  --success:#22c55e;--success-bg:#081a0a;
+  --blue:#60a5fa;--blue-light:#0d1b35;
+  --purple:#a78bfa;--purple-light:#180f30;
+  --green:#34d399;--green-light:#0a1e16;
+  --orange:#fbbf24;--orange-light:#1c1007;
+  --shadow-md:0 4px 20px rgba(0,0,0,.4);
+  --shadow-lg:0 8px 40px rgba(0,0,0,.6);
+}
+html,body{height:100%;font-family:var(--sans);}
+body{display:flex;height:100vh;overflow:hidden;background:var(--bg-page);color:var(--text-primary);transition:background .2s,color .2s;}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--bg-sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:background .2s,border-color .2s;overflow:hidden;}
+.sidebar-header{padding:14px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-icon{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#f55036,#ff7a5c);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(245,80,54,.3);}
+.brand-icon svg{width:17px;height:17px;}
+.brand-name{font-size:15px;font-weight:700;color:var(--text-primary);letter-spacing:-.3px;}
+.brand-sub{font-size:11px;color:var(--text-muted);margin-top:1px;}
+.sb-search{padding:10px 12px;flex-shrink:0;}
+.sb-search-inner{display:flex;align-items:center;gap:8px;background:var(--bg-hover);border:1px solid var(--border);border-radius:8px;padding:7px 10px;}
+.sb-search-inner svg{width:14px;height:14px;color:var(--text-muted);flex-shrink:0;}
+.sb-search-input{flex:1;background:none;border:none;outline:none;font-size:13px;font-family:var(--sans);color:var(--text-primary);}
+.sb-search-input::placeholder{color:var(--text-muted);}
+.sb-nav{padding:4px 8px;flex-shrink:0;}
+.sb-nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;font-size:13px;font-weight:600;color:var(--text-primary);cursor:pointer;transition:.12s;border:none;background:none;width:100%;text-align:left;font-family:var(--sans);}
+.sb-nav-item:hover{background:var(--bg-hover);}
+.sb-nav-item.active{background:var(--bg-active);}
+.sb-nav-item svg{width:16px;height:16px;flex-shrink:0;color:var(--text-secondary);}
+.sb-nav-item.active svg{color:var(--accent);}
+.sb-section-label{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;padding:10px 18px 4px;display:flex;align-items:center;justify-content:space-between;}
+.sb-agents{flex:1;overflow-y:auto;padding:0 8px 8px;}
+.sb-agents::-webkit-scrollbar{width:3px;}
+.sb-agents::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.agent-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:.12s;border:none;background:none;width:100%;text-align:left;font-family:var(--sans);position:relative;}
+.agent-item:hover{background:var(--bg-hover);}
+.agent-item.active{background:var(--bg-active);}
+.agent-actions{display:none;align-items:center;gap:2px;flex-shrink:0;margin-left:auto;}
+.agent-item:hover .agent-actions,.agent-item.active .agent-actions{display:flex;}
+.agent-action-btn{width:24px;height:24px;border-radius:6px;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-muted);transition:.12s;font-family:var(--sans);padding:0;}
+.agent-action-btn:hover{background:var(--bg-input);color:var(--text-primary);}
+.agent-action-btn.danger:hover{background:#fee2e2;color:#dc2626;}
+[data-theme="dark"] .agent-action-btn.danger:hover{background:#3b0f0f;color:#f87171;}
+.agent-action-btn svg{width:13px;height:13px;}
+.agent-avatar{width:32px;height:32px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;overflow:hidden;}
+.agent-avatar.color-red{background:linear-gradient(135deg,#f55036,#ff7a5c);}
+.agent-avatar.color-blue{background:linear-gradient(135deg,#3b82f6,#60a5fa);}
+.agent-avatar.color-green{background:linear-gradient(135deg,#10b981,#34d399);}
+.agent-avatar.color-purple{background:linear-gradient(135deg,#8b5cf6,#a78bfa);}
+.agent-avatar.color-orange{background:linear-gradient(135deg,#f59e0b,#fbbf24);}
+.agent-avatar svg{width:17px;height:17px;}
+.agent-info{flex:1;min-width:0;}
+.agent-name{font-size:13px;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.agent-desc{font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+.create-agent-btn{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;font-size:13px;font-weight:500;color:var(--text-secondary);cursor:pointer;transition:.12s;border:1px dashed var(--border);background:none;width:100%;font-family:var(--sans);margin-top:4px;}
+.create-agent-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light);}
+.create-agent-btn svg{width:15px;height:15px;flex-shrink:0;}
+.sb-bottom{padding:10px 12px 14px;border-top:1px solid var(--border);flex-shrink:0;}
+.sb-bottom-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.key-dot{width:7px;height:7px;border-radius:50%;background:var(--border-input);flex-shrink:0;transition:background .3s;}
+.key-dot.ok{background:var(--success);}
+.key-dot.err{background:var(--accent);}
+.sb-key-status{font-size:11px;color:var(--text-muted);cursor:pointer;background:none;border:none;font-family:var(--sans);display:flex;align-items:center;gap:5px;}
+.sb-key-status:hover{color:var(--text-secondary);}
+.theme-btn{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:var(--bg-hover);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);transition:.2s;}
+.theme-btn:hover{border-color:var(--border-input);color:var(--text-primary);}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;background:var(--bg-main);min-width:0;transition:background .2s;}
+.topbar{height:var(--header-h);flex-shrink:0;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;gap:12px;}
+.topbar-title{font-size:15px;font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.topbar-agent-badge{font-size:10px;font-weight:600;background:var(--accent-light);color:var(--accent);padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;}
+.topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.stat-pill{font-size:11px;color:var(--text-muted);background:var(--bg-hover);padding:4px 10px;border-radius:20px;font-family:var(--mono);}
+.kb-indicator{display:flex;align-items:center;gap:5px;font-size:11px;background:var(--green-light);color:var(--green);padding:4px 10px;border-radius:20px;font-weight:600;}
+.kb-indicator svg{width:12px;height:12px;}
+
+/* CHAT */
+.chat-wrap{flex:1;overflow-y:auto;padding:28px 0;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+.chat-wrap::-webkit-scrollbar{width:4px;}
+.chat-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.chat-inner{max-width:780px;margin:0 auto;padding:0 24px;display:flex;flex-direction:column;gap:24px;}
+
+/* EMPTY */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:60vh;gap:16px;padding:40px 24px;}
+.empty-logo{width:60px;height:60px;border-radius:18px;background:linear-gradient(135deg,#f55036,#ff7a5c);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 24px rgba(245,80,54,.25);}
+.empty-logo svg{width:28px;height:28px;}
+.empty-title{font-size:24px;font-weight:700;color:var(--text-primary);letter-spacing:-.4px;}
+.empty-sub{font-size:14px;color:var(--text-secondary);max-width:420px;line-height:1.65;}
+.empty-caps{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:4px;}
+.empty-cap{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid var(--border);}
+.sugs{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:8px;}
+.sug{padding:8px 16px;border-radius:20px;border:1px solid var(--border);background:var(--bg-page);font-size:13px;color:var(--text-secondary);cursor:pointer;transition:.15s;font-family:var(--sans);}
+.sug:hover{border-color:var(--accent);color:var(--text-primary);background:var(--accent-light);}
+
+/* KB BANNER */
+.kb-banner{background:linear-gradient(90deg,var(--green-light),var(--blue-light));border:1px solid var(--green);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-secondary);}
+.kb-banner-icon{font-size:18px;flex-shrink:0;}
+.kb-banner-text strong{color:var(--text-primary);}
+.kb-banner-close{margin-left:auto;background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px;line-height:1;padding:0;}
+
+/* MESSAGES */
+.msg-group{display:flex;gap:14px;animation:msgpop .2s ease;}
+.msg-group.user{flex-direction:row-reverse;}
+@keyframes msgpop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.msg-avatar{width:32px;height:32px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-top:2px;}
+.msg-avatar.ai{background:linear-gradient(135deg,#f55036,#ff7a5c);color:#fff;box-shadow:0 2px 8px rgba(245,80,54,.25);}
+.msg-avatar.user{background:var(--bg-active);color:var(--text-secondary);border:1px solid var(--border);font-size:12px;}
+.msg-content{flex:1;min-width:0;}
+.msg-name{font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;}
+.msg-group.user .msg-name{text-align:right;}
+.bubble{font-size:14px;line-height:1.75;color:var(--text-primary);}
+.msg-group.user .bubble{background:var(--bg-user-bubble);border:1px solid var(--border);padding:12px 16px;border-radius:var(--radius);border-bottom-right-radius:4px;display:inline-block;max-width:85%;float:right;clear:both;}
+.bubble code{background:var(--bg-chip);padding:2px 6px;border-radius:5px;font-family:var(--mono);font-size:12px;color:var(--accent);}
+.bubble pre{background:var(--bg-page);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;overflow-x:auto;margin:10px 0;font-family:var(--mono);font-size:12px;position:relative;}
+.bubble pre code{background:none;padding:0;color:var(--text-secondary);}
+.bubble p{margin-bottom:10px;}.bubble p:last-child{margin-bottom:0;}
+.bubble ul,.bubble ol{padding-left:20px;margin-bottom:10px;}
+.bubble li{margin-bottom:4px;}
+.bubble h1,.bubble h2,.bubble h3{font-weight:700;margin-bottom:8px;margin-top:14px;color:var(--text-primary);}
+.bubble h1{font-size:18px;}.bubble h2{font-size:16px;}.bubble h3{font-size:14px;}
+.bubble strong{font-weight:600;}.bubble em{font-style:italic;}
+.msg-time{font-size:11px;color:var(--text-muted);margin-top:6px;clear:both;}
+.msg-group.user .msg-time{text-align:right;}
+.pre-wrap{position:relative;}
+.copy-btn{position:absolute;top:8px;right:8px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:11px;font-family:var(--mono);padding:3px 8px;cursor:pointer;transition:.15s;opacity:0;}
+.pre-wrap:hover .copy-btn{opacity:1;}
+.copy-btn:hover{background:var(--bg-hover);color:var(--text-primary);}
+.stream-cursor{display:inline-block;width:7px;height:14px;background:var(--text-primary);opacity:.7;animation:blink2 .7s steps(1) infinite;vertical-align:middle;margin-left:2px;border-radius:1px;}
+@keyframes blink2{0%,49%{opacity:.7}50%,100%{opacity:0}}
+
+/* THINKING */
+.thinking-row{display:flex;gap:14px;}
+.thinking-dots{display:flex;align-items:center;gap:5px;padding:14px 18px;border-radius:var(--radius);background:var(--bg-hover);border:1px solid var(--border);}
+.tdot{width:6px;height:6px;border-radius:50%;background:var(--accent);opacity:.3;animation:blink 1.2s infinite;}
+.tdot:nth-child(2){animation-delay:.2s}.tdot:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+
+/* INPUT */
+.input-area{padding:16px 24px 20px;border-top:1px solid var(--border);flex-shrink:0;background:var(--bg-main);}
+.input-inner{max-width:780px;margin:0 auto;}
+.err-toast{background:var(--accent-light);border:1px solid rgba(245,80,54,.25);color:var(--accent-dark);font-size:13px;border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:10px;display:none;}
+.err-toast.on{display:block;animation:msgpop .2s ease;}
+.file-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+.chip{display:flex;align-items:center;gap:6px;background:var(--bg-chip);border:1px solid var(--border);border-radius:20px;padding:4px 10px 4px 8px;font-size:12px;color:var(--text-secondary);animation:msgpop .15s ease;}
+.chip.kb-chip{background:var(--green-light);border-color:var(--green);color:var(--green);}
+.chip-x{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:14px;line-height:1;padding:0;transition:color .2s;}
+.chip-x:hover{color:var(--accent);}
+.input-box{display:flex;align-items:flex-end;gap:8px;background:var(--bg-input);border:1px solid var(--border-input);border-radius:var(--radius);padding:8px 8px 8px 14px;transition:border-color .2s,box-shadow .2s;}
+.input-box:focus-within{border-color:rgba(245,80,54,.3);box-shadow:0 0 0 3px rgba(245,80,54,.07);}
+.msg-ta{flex:1;background:none;border:none;outline:none;resize:none;font-size:14px;font-family:var(--sans);color:var(--text-primary);min-height:24px;max-height:160px;line-height:1.6;padding:4px 0;}
+.msg-ta::placeholder{color:var(--text-muted);}
+.input-actions{display:flex;align-items:flex-end;gap:4px;}
+.attach-wrap{position:relative;}
+.icon-btn{width:36px;height:36px;border-radius:9px;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-muted);transition:.15s;}
+.icon-btn:hover{background:var(--bg-hover);color:var(--text-secondary);}
+.icon-btn.active{background:var(--accent-light);color:var(--accent);}
+.attach-dropdown{position:absolute;bottom:calc(100% + 8px);right:0;background:var(--bg-sidebar);border:1px solid var(--border);border-radius:var(--radius);padding:6px;min-width:200px;z-index:200;box-shadow:var(--shadow-lg);display:none;flex-direction:column;}
+.attach-dropdown.open{display:flex;animation:msgpop .15s ease;}
+.drop-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;font-size:13px;color:var(--text-primary);cursor:pointer;transition:.12s;border:none;background:none;width:100%;text-align:left;font-family:var(--sans);}
+.drop-item:hover{background:var(--bg-hover);}
+.drop-icon{width:32px;height:32px;border-radius:8px;background:var(--bg-chip);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.drop-sep{height:1px;background:var(--border);margin:4px 6px;}
+.send-btn{width:36px;height:36px;border-radius:9px;border:none;background:var(--accent);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;flex-shrink:0;}
+.send-btn:hover{background:var(--accent-dark);}
+.send-btn:active{transform:scale(.94);}
+.send-btn:disabled{background:var(--bg-hover);color:var(--text-muted);cursor:not-allowed;transform:none;}
+.send-btn svg{width:15px;height:15px;}
+.input-hint{font-size:11px;color:var(--text-muted);text-align:center;margin-top:10px;}
+
+/* ATTACHMENT PREVIEW */
+.att-preview-card{display:flex;align-items:flex-start;gap:10px;background:var(--bg-page);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin:6px 0;max-width:480px;}
+.att-preview-icon{font-size:22px;flex-shrink:0;line-height:1;}
+.att-preview-info{flex:1;min-width:0;}
+.att-preview-name{font-size:12px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.att-preview-meta{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.att-preview-excerpt{font-size:11px;color:var(--text-secondary);margin-top:5px;line-height:1.5;max-height:48px;overflow:hidden;font-family:var(--mono);white-space:pre-wrap;word-break:break-all;}
+.att-status-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;margin-top:4px;}
+.att-status-badge.ok{background:var(--success-bg);color:var(--success);}
+.att-img-thumb{width:60px;height:60px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid var(--border);}
+.chip-processing{opacity:.6;animation:pulse .8s ease infinite alternate;}
+@keyframes pulse{to{opacity:1}}
+
+/* DOC CARD */
+.doc-card{margin:10px 0;border:1px solid var(--blue);border-radius:var(--radius);overflow:hidden;background:var(--blue-light);max-width:480px;}
+.doc-card-header{display:flex;align-items:center;gap:10px;padding:12px 14px;}
+.doc-card-icon{font-size:22px;}
+.doc-card-info{flex:1;}
+.doc-card-name{font-size:13px;font-weight:600;color:var(--text-primary);}
+.doc-card-meta{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.doc-card-actions{display:flex;gap:6px;padding:0 14px 12px;}
+.doc-btn{display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;transition:.15s;font-family:var(--sans);border:1px solid;}
+.doc-btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;}
+.doc-btn.primary:hover{opacity:.85;}
+.doc-btn.secondary{background:var(--bg-input);border-color:var(--border);color:var(--text-secondary);}
+.doc-btn.secondary:hover{background:var(--bg-hover);}
+
+/* MODALS */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);animation:fadein .15s ease;}
+.modal-overlay.hidden{display:none;}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.modal-box{background:var(--bg-sidebar);border:1px solid var(--border);border-radius:18px;width:520px;max-width:94vw;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:slideup .18s ease;}
+.modal-box.wide{width:640px;}
+@keyframes slideup{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:22px 24px 0;}
+.modal-title{font-size:17px;font-weight:700;color:var(--text-primary);}
+.modal-close{width:30px;height:30px;border-radius:8px;border:none;background:var(--bg-hover);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);transition:.12s;}
+.modal-close:hover{background:var(--bg-active);color:var(--text-primary);}
+.modal-close svg{width:14px;height:14px;}
+.modal-body{padding:20px 24px 24px;display:flex;flex-direction:column;gap:16px;}
+.modal-footer{display:flex;gap:8px;padding:0 24px 24px;}
+.modal-btn{flex:1;padding:10px;border-radius:9px;font-size:14px;font-weight:600;font-family:var(--sans);cursor:pointer;transition:.15s;border:1px solid;}
+.modal-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.modal-btn.primary:hover{background:var(--accent-dark);border-color:var(--accent-dark);}
+.modal-btn.secondary{background:var(--bg-page);color:var(--text-secondary);border-color:var(--border);}
+.modal-btn.secondary:hover{background:var(--bg-hover);}
+.modal-btn.danger{background:transparent;color:#dc2626;border-color:#fca5a5;}
+.modal-btn.danger:hover{background:#fee2e2;}
+.modal-btn.green{background:var(--green);color:#fff;border-color:var(--green);}
+.modal-btn.green:hover{opacity:.85;}
+[data-theme="dark"] .modal-btn.danger{color:#f87171;border-color:#7f1d1d;}
+[data-theme="dark"] .modal-btn.danger:hover{background:#3b0f0f;}
+
+/* MODAL TABS */
+.modal-tabs{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--border);margin-bottom:0;}
+.modal-tab{padding:10px 16px;font-size:13px;font-weight:600;color:var(--text-muted);cursor:pointer;border:none;background:none;font-family:var(--sans);border-bottom:2px solid transparent;margin-bottom:-1px;transition:.15s;}
+.modal-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.modal-tab:hover:not(.active){color:var(--text-secondary);}
+.tab-pane{display:none;}
+.tab-pane.active{display:flex;flex-direction:column;gap:16px;}
+
+.modal-avatar-row{display:flex;align-items:center;gap:14px;padding:14px;background:var(--bg-page);border-radius:12px;border:1px solid var(--border);}
+.modal-avatar-preview{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.modal-avatar-preview svg{width:24px;height:24px;}
+.modal-avatar-info{flex:1;}
+.modal-avatar-label{font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;}
+.color-picker{display:flex;gap:6px;flex-wrap:wrap;}
+.color-swatch{width:22px;height:22px;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:.12s;}
+.color-swatch.selected{border-color:var(--text-primary);transform:scale(1.1);}
+.color-swatch:hover{transform:scale(1.08);}
+.field-group{display:flex;flex-direction:column;gap:6px;}
+.field-label{font-size:12px;font-weight:600;color:var(--text-secondary);}
+.field-badge{font-size:10px;font-weight:700;padding:1px 6px;border-radius:6px;background:var(--accent-light);color:var(--accent);margin-left:5px;}
+.field-badge.blue{background:var(--blue-light);color:var(--blue);}
+.field-badge.green{background:var(--green-light);color:var(--green);}
+.field-input{padding:10px 12px;background:var(--bg-input);border:1px solid var(--border-input);border-radius:9px;font-size:13px;font-family:var(--sans);color:var(--text-primary);outline:none;transition:.15s;width:100%;}
+.field-input:focus{border-color:rgba(245,80,54,.4);box-shadow:0 0 0 3px rgba(245,80,54,.06);}
+.field-textarea{padding:10px 12px;background:var(--bg-input);border:1px solid var(--border-input);border-radius:9px;font-size:13px;font-family:var(--sans);color:var(--text-primary);outline:none;transition:.15s;width:100%;resize:vertical;}
+.field-textarea:focus{border-color:rgba(245,80,54,.4);box-shadow:0 0 0 3px rgba(245,80,54,.06);}
+.instructions-ta{min-height:120px;}
+.modal-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.modal-divider{height:1px;background:var(--border);margin:4px 0;}
+
+/* PROVIDER LIST */
+.provider-list{display:flex;flex-direction:column;gap:8px;}
+.provider-item{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--bg-page);transition:.15s;}
+.provider-item.connected{border-color:var(--green);background:var(--green-light);}
+.provider-logo{font-size:22px;width:36px;text-align:center;}
+.provider-info{flex:1;min-width:0;}
+.provider-name{font-size:13px;font-weight:600;color:var(--text-primary);}
+.provider-model{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.provider-actions{display:flex;gap:6px;align-items:center;}
+.provider-btn{padding:5px 12px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;transition:.15s;font-family:var(--sans);border:1px solid;}
+.provider-btn.connect{background:var(--accent);color:#fff;border-color:var(--accent);}
+.provider-btn.connect:hover{background:var(--accent-dark);}
+.provider-btn.disconnect{background:transparent;color:#dc2626;border-color:#fca5a5;}
+.provider-btn.disconnect:hover{background:#fee2e2;}
+.provider-btn.use{background:var(--green);color:#fff;border-color:var(--green);}
+.provider-btn.use:hover{opacity:.85;}
+[data-theme="dark"] .provider-btn.disconnect{color:#f87171;border-color:#7f1d1d;}
+[data-theme="dark"] .provider-btn.disconnect:hover{background:#3b0f0f;}
+.active-provider-badge{font-size:9px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--green-light);color:var(--green);margin-left:5px;vertical-align:middle;}
+.provider-key-row{display:flex;gap:8px;align-items:center;}
+.provider-key-input{flex:1;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border-input);border-radius:8px;font-size:12px;font-family:var(--mono);color:var(--text-primary);outline:none;}
+.provider-key-input:focus{border-color:rgba(245,80,54,.4);}
+
+/* KB MANAGER in Agent Modal */
+.kb-drop-zone{border:2px dashed var(--border);border-radius:12px;padding:24px;text-align:center;cursor:pointer;transition:.2s;background:var(--bg-page);}
+.kb-drop-zone:hover,.kb-drop-zone.over{border-color:var(--green);background:var(--green-light);}
+.kb-drop-zone-icon{font-size:32px;margin-bottom:10px;}
+.kb-drop-zone-text{font-size:13px;font-weight:600;color:var(--text-secondary);}
+.kb-drop-zone-sub{font-size:11px;color:var(--text-muted);margin-top:4px;}
+.kb-doc-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-page);}
+.kb-doc-icon{font-size:20px;flex-shrink:0;}
+.kb-doc-info{flex:1;min-width:0;}
+.kb-doc-name{font-size:12px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.kb-doc-meta{font-size:10px;color:var(--text-muted);margin-top:2px;}
+.kb-doc-remove{width:26px;height:26px;border-radius:7px;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-muted);transition:.12s;flex-shrink:0;padding:0;}
+.kb-doc-remove:hover{background:#fee2e2;color:#dc2626;}
+[data-theme="dark"] .kb-doc-remove:hover{background:#3b0f0f;color:#f87171;}
+
+/* PASSCODE MODAL */
+.passcode-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:3000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);animation:fadein .15s ease;}
+.passcode-overlay.hidden{display:none;}
+.passcode-box{background:var(--bg-sidebar);border:1px solid var(--border);border-radius:18px;padding:32px 28px;width:360px;max-width:92vw;box-shadow:var(--shadow-lg);animation:slideup .18s ease;text-align:center;display:flex;flex-direction:column;align-items:center;gap:0;}
+.passcode-icon{width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#f59e0b,#fbbf24);display:flex;align-items:center;justify-content:center;margin-bottom:16px;box-shadow:0 3px 10px rgba(245,158,11,.3);}
+.passcode-box h3{font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:6px;}
+.passcode-box p{font-size:13px;color:var(--text-secondary);margin-bottom:16px;}
+.passcode-err{font-size:12px;color:var(--accent);margin-top:6px;display:none;}
+.passcode-footer{display:flex;gap:8px;margin-top:14px;width:100%;}
+
+/* API PASSCODE MODAL */
+.api-passcode-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:4000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);animation:fadein .15s ease;}
+.api-passcode-overlay.hidden{display:none;}
+.api-passcode-box{background:var(--bg-sidebar);border:1px solid var(--border);border-radius:18px;padding:36px 28px;width:380px;max-width:92vw;box-shadow:var(--shadow-lg);animation:slideup .2s ease;text-align:center;display:flex;flex-direction:column;align-items:center;}
+.api-passcode-lock{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#f55036,#ff7a5c);display:flex;align-items:center;justify-content:center;margin-bottom:18px;box-shadow:0 4px 16px rgba(245,80,54,.3);}
+.api-passcode-box h3{font-size:18px;font-weight:700;color:var(--text-primary);margin-bottom:8px;}
+.api-passcode-box p{font-size:13px;color:var(--text-secondary);margin-bottom:20px;line-height:1.6;}
+.api-passcode-err{font-size:12px;color:var(--accent);margin-top:8px;display:none;}
+.api-passcode-footer{display:flex;gap:8px;margin-top:16px;width:100%;}
+
+/* CONFIRM BOX */
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2500;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.confirm-overlay.hidden{display:none;}
+.confirm-box{background:var(--bg-sidebar);border:1px solid var(--border);border-radius:18px;padding:28px;width:340px;max-width:92vw;box-shadow:var(--shadow-lg);text-align:center;}
+.confirm-icon{width:44px;height:44px;border-radius:12px;background:#fee2e2;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:#dc2626;}
+[data-theme="dark"] .confirm-icon{background:#3b0f0f;color:#f87171;}
+.confirm-icon svg{width:22px;height:22px;}
+.confirm-box h3{font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:8px;}
+.confirm-box p{font-size:13px;color:var(--text-secondary);margin-bottom:20px;line-height:1.5;}
+.confirm-btns{display:flex;gap:8px;}
+.confirm-btn{flex:1;padding:10px;border-radius:9px;font-size:14px;font-weight:600;font-family:var(--sans);cursor:pointer;transition:.15s;border:1px solid;}
+.confirm-btn.cancel{background:var(--bg-page);color:var(--text-secondary);border-color:var(--border);}
+.confirm-btn.cancel:hover{background:var(--bg-hover);}
+.confirm-btn.delete{background:#dc2626;color:#fff;border-color:#dc2626;}
+.confirm-btn.delete:hover{background:#b91c1c;}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ MAIN APP ═══════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-name">CPB Surveyor</div>
+        <div class="brand-sub">Internal Survey System</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sb-search">
+    <div class="sb-search-inner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="sb-search-input" placeholder="Search agents…" oninput="filterAgents(this.value)"/>
+    </div>
+  </div>
+
+  <div class="sb-nav">
+    <!-- New Chat = General Knowledge -->
+    <button class="sb-nav-item active" id="newChatBtn" onclick="startGeneralChat();setActiveNav(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      New Chat
+    </button>
+  </div>
+
+  <div class="sb-section-label">
+    <span>AI Agents</span>
+    <span id="agentCount" style="font-size:10px;color:var(--text-muted)">0</span>
+  </div>
+  <div class="sb-agents" id="agentList"></div>
+
+  <div class="sb-bottom">
+    <div class="sb-bottom-row">
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="key-dot" id="dot"></div>
+        <button class="sb-key-status" id="keyStatusBtn" onclick="openApiKeysModal()">
+          <span id="activeProviderName">No API key</span>
+        </button>
+      </div>
+      <button class="theme-btn" onclick="toggleTheme()">
+        <svg id="themeIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <span class="topbar-title" id="topTitle">CPB Surveyor AI</span>
+    <div class="topbar-right">
+      <div class="kb-indicator" id="kbIndicator" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span id="kbDocCount">0 docs</span>
+      </div>
+      <span class="stat-pill" id="statMsgs">0 messages</span>
+      <span class="stat-pill" id="statLat">—</span>
+    </div>
+  </div>
+
+  <div class="chat-wrap" id="chatWrap">
+    <div class="chat-inner" id="chat">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="empty-title">CPB Surveyor AI</div>
+        <div class="empty-sub">General Knowledge Assistant — CPB Contractors Australia. Ask me anything or select an agent for specialised tasks.</div>
+        <div class="empty-caps">
+          <div class="empty-cap" style="color:var(--green);background:var(--green-light);border-color:var(--green)">📚 Agent Knowledge Base</div>
+          <div class="empty-cap" style="color:var(--purple);background:var(--purple-light);border-color:var(--purple)">🤖 Multi-Provider AI</div>
+          <div class="empty-cap" style="color:var(--blue);background:var(--blue-light);border-color:var(--blue)">🧠 General Knowledge</div>
+          <div class="empty-cap" style="color:var(--orange);background:var(--orange-light);border-color:var(--orange)">🔒 Passcode Protected</div>
+        </div>
+        <div class="sugs" id="emptySugs">
+          <button class="sug" onclick="useSug(this)">What is MGA2020 coordinate system?</button>
+          <button class="sug" onclick="useSug(this)">Explain total station surveying</button>
+          <button class="sug" onclick="useSug(this)">What are Australian survey standards?</button>
+          <button class="sug" onclick="useSug(this)">Generate a survey QA checklist</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <div class="input-inner">
+      <div class="err-toast" id="errToast"></div>
+      <div class="file-chips" id="fileChips"></div>
+      <div class="input-box">
+        <textarea class="msg-ta" id="txt" placeholder="Ask anything — general knowledge or agent-specific…" rows="1" onkeydown="onKey(event)" oninput="grow(this)"></textarea>
+        <div class="input-actions">
+          <div class="attach-wrap">
+            <button class="icon-btn" id="attachBtn" onclick="toggleDrop()" title="Attach">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+              </svg>
+            </button>
+            <div class="attach-dropdown" id="attachDrop">
+              <button class="drop-item" onclick="triggerFile()"><span class="drop-icon">📎</span>Attach document (PDF, DOCX, XLSX…)</button>
+              <button class="drop-item" onclick="triggerImg()"><span class="drop-icon">🖼️</span>Upload image (vision)</button>
+              <div class="drop-sep"></div>
+              <button class="drop-item" onclick="clearFiles()"><span class="drop-icon">🗑️</span>Clear attachments</button>
+            </div>
+          </div>
+          <button class="send-btn" id="sendBtn" onclick="send()" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="input-hint" id="inputHint">Shift+Enter for new line · Attach docs for context · Select an agent for specialised AI</div>
+    </div>
+  </div>
+</div>
+
+<!-- FILE INPUTS -->
+<input type="file" id="fileInput" style="display:none" accept=".pdf,.txt,.md,.csv,.json,.docx,.xlsx,.xls,.xml,.yaml,.yml,.log,.tsv" onchange="handleFile(this,'doc')">
+<input type="file" id="imgInput" style="display:none" accept="image/*" onchange="handleFile(this,'img')">
+<input type="file" id="agentKbFileInput" style="display:none" accept=".pdf,.txt,.md,.docx,.xlsx,.csv" multiple onchange="handleAgentKBFileInput(this)">
+
+<!-- ═════ API KEYS MODAL ═════ -->
+<div class="modal-overlay hidden" id="apiKeysOverlay">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <span class="modal-title">🔑 API Keys — AI Providers</span>
+      <button class="modal-close" onclick="closeApiKeysModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--text-secondary);background:var(--blue-light);border:1px solid var(--blue);border-radius:9px;padding:10px 14px;">
+        ℹ️ Keys are stored locally in your browser. Click <strong>Use</strong> to make a provider active for all agents.
+      </div>
+      <div class="provider-list" id="providerList"></div>
+      <div style="font-size:11px;color:var(--text-muted)">Active provider is used for all conversations. Keys never leave your browser.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn secondary" onclick="closeApiKeysModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═════ API KEY PASSCODE MODAL ═════ -->
+<div class="api-passcode-overlay hidden" id="apiPasscodeOverlay">
+  <div class="api-passcode-box">
+    <div class="api-passcode-lock">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </div>
+    <h3>API Keys — Protected</h3>
+    <p>Enter the admin passcode to manage API keys.</p>
+    <div style="position:relative;width:100%;">
+      <input class="field-input" id="apiPasscodeInput" type="password" placeholder="Enter passcode…" onkeydown="if(event.key==='Enter')verifyApiPasscode()"/>
+      <button style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:11px;font-family:var(--mono);" id="apiPasscodeEyeBtn" onclick="toggleApiPasscodeEye()">show</button>
+    </div>
+    <div class="api-passcode-err" id="apiPasscodeErr">❌ Incorrect passcode</div>
+    <div class="api-passcode-footer">
+      <button class="modal-btn secondary" onclick="closeApiPasscodeModal()" style="flex:1">Cancel</button>
+      <button class="modal-btn primary" onclick="verifyApiPasscode()" style="flex:1">Unlock</button>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:12px;">
+  </div>
+</div>
+
+<!-- ═════ CREATE AGENT MODAL ═════ -->
+<div class="modal-overlay hidden" id="createAgentOverlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Create New Agent</span>
+      <button class="modal-close" onclick="closeCreateModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" onclick="switchAgentTab(this,'createTabSetup')">⚙️ Setup</button>
+      <button class="modal-tab" onclick="switchAgentTab(this,'createTabKB')">📚 Knowledge Base</button>
+    </div>
+    <div class="modal-body">
+      <!-- Tab: Setup -->
+      <div class="tab-pane active" id="createTabSetup">
+        <div class="modal-avatar-row">
+          <div class="modal-avatar-preview color-blue" id="createAvatarPreview">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          </div>
+          <div class="modal-avatar-info">
+            <div class="modal-avatar-label">Colour</div>
+            <div class="color-picker" id="createColorPicker">
+              <div class="color-swatch" style="background:linear-gradient(135deg,#f55036,#ff7a5c)" data-color="color-red" onclick="selectCreateColor(this,'color-red')"></div>
+              <div class="color-swatch selected" style="background:linear-gradient(135deg,#3b82f6,#60a5fa)" data-color="color-blue" onclick="selectCreateColor(this,'color-blue')"></div>
+              <div class="color-swatch" style="background:linear-gradient(135deg,#10b981,#34d399)" data-color="color-green" onclick="selectCreateColor(this,'color-green')"></div>
+              <div class="color-swatch" style="background:linear-gradient(135deg,#8b5cf6,#a78bfa)" data-color="color-purple" onclick="selectCreateColor(this,'color-purple')"></div>
+              <div class="color-swatch" style="background:linear-gradient(135deg,#f59e0b,#fbbf24)" data-color="color-orange" onclick="selectCreateColor(this,'color-orange')"></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-row2">
+          <div class="field-group">
+            <label class="field-label">Agent Name <span class="field-badge">Required</span></label>
+            <input class="field-input" id="createName" placeholder="e.g. Survey QA Agent"/>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Category</label>
+            <input class="field-input" id="createCategory" placeholder="e.g. Surveying"/>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Short Description</label>
+          <input class="field-input" id="createDesc" placeholder="Brief description of this agent"/>
+        </div>
+        <div class="field-group">
+          <label class="field-label">System Instructions <span class="field-badge blue">Defines Agent Behaviour</span></label>
+          <textarea class="field-textarea instructions-ta" id="createInstructions" placeholder="You are a CPB Contractors survey specialist. Your role is to…&#10;&#10;Tip: Upload docs in the Knowledge Base tab — the AI will use them as primary context."></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Conversation Starters <span class="field-badge green">One per line</span></label>
+          <textarea class="field-textarea" id="createStarters" placeholder="What coordinate system should I use?&#10;How do I submit field data?"></textarea>
+        </div>
+        <div class="modal-divider"></div>
+        <div class="field-group">
+          <label class="field-label">🔒 Passcode <span style="font-size:10px;color:var(--text-muted);font-weight:400">(Optional — locks edit/delete)</span></label>
+          <input class="field-input" id="createPasscode" placeholder="Leave blank for no lock" type="password"/>
+        </div>
+      </div>
+      <!-- Tab: Knowledge Base -->
+      <div class="tab-pane" id="createTabKB">
+        <div style="font-size:13px;color:var(--text-secondary);background:var(--green-light);border:1px solid var(--green);border-radius:9px;padding:10px 14px;">
+          📌 Documents uploaded here will be used as <strong>primary knowledge</strong> for this agent only. The AI will reference this content first.
+        </div>
+        <div class="kb-drop-zone" onclick="triggerAgentKbFile('create')" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="event.preventDefault();this.classList.remove('over');handleAgentKBDrop(event,'create')">
+          <div class="kb-drop-zone-icon">📤</div>
+          <div class="kb-drop-zone-text">Click to upload or drag & drop</div>
+          <div class="kb-drop-zone-sub">PDF, DOCX, TXT, CSV, XLSX, MD · Multiple files</div>
+        </div>
+        <div id="createKbDocList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <div id="createKbEmptyMsg" style="text-align:center;padding:10px;color:var(--text-muted);font-size:12px;">No documents yet. Upload to enable Knowledge Base for this agent.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn secondary" onclick="closeCreateModal()">Cancel</button>
+      <button class="modal-btn primary" onclick="createAgent()">Create Agent</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═════ EDIT AGENT MODAL ═════ -->
+<div class="modal-overlay hidden" id="editAgentOverlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="editModalTitle">Edit Agent</span>
+      <button class="modal-close" onclick="closeEditModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" onclick="switchAgentTab(this,'editTabSetup')">⚙️ Setup</button>
+      <button class="modal-tab" onclick="switchAgentTab(this,'editTabKB')">📚 Knowledge Base</button>
+    </div>
+    <div class="modal-body">
+      <!-- Tab: Setup -->
+      <div class="tab-pane active" id="editTabSetup">
+        <div class="modal-avatar-row">
+          <div class="modal-avatar-preview color-red" id="avatarPreview">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
+          </div>
+          <div class="modal-avatar-info">
+            <div class="modal-avatar-label">Colour</div>
+            <div class="color-picker" id="colorPicker">
+              <div class="color-swatch" style="background:linear-gradient(135deg,#f55036,#ff7a5c)" data-color="color-red" onclick="selectColor(this,'color-red')"></div>
+              <div class="color-swatch" style="background:linear-gradient(135deg,#3b82f6,#60a5fa)" data-color="color-blue" onclick="selectColor(this,'color-blue')"></div>
+              <div class="color-swatch" style="background:linear-gradient(135deg,#10b981,#34d399)" data-color="color-green" onclick="selectColor(this,'color-green')"></div>
+              <div class="color-swatch" style="background:linear-gradient(135deg,#8b5cf6,#a78bfa)" data-color="color-purple" onclick="selectColor(this,'color-purple')"></div>
+              <div class="color-swatch" style="background:linear-gradient(135deg,#f59e0b,#fbbf24)" data-color="color-orange" onclick="selectColor(this,'color-orange')"></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-row2">
+          <div class="field-group">
+            <label class="field-label">Agent Name <span class="field-badge">Required</span></label>
+            <input class="field-input" id="editName" placeholder="Agent name"/>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Category</label>
+            <input class="field-input" id="editCategory" placeholder="e.g. Surveying"/>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Short Description</label>
+          <input class="field-input" id="editDesc" placeholder="Brief description"/>
+        </div>
+        <div class="field-group">
+          <label class="field-label">System Instructions <span class="field-badge blue">Defines Agent Behaviour</span></label>
+          <textarea class="field-textarea instructions-ta" id="editInstructions"></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Conversation Starters <span class="field-badge green">One per line</span></label>
+          <textarea class="field-textarea" id="editStarters"></textarea>
+        </div>
+        <div class="modal-divider"></div>
+        <div class="field-group">
+          <label class="field-label">🔒 Passcode</label>
+          <input class="field-input" id="editPasscode" placeholder="Leave blank to remove lock" type="password"/>
+        </div>
+      </div>
+      <!-- Tab: Knowledge Base -->
+      <div class="tab-pane" id="editTabKB">
+        <div style="font-size:13px;color:var(--text-secondary);background:var(--green-light);border:1px solid var(--green);border-radius:9px;padding:10px 14px;">
+          📌 Documents uploaded here will be used as <strong>primary knowledge</strong> for this agent only.
+        </div>
+        <div class="kb-drop-zone" onclick="triggerAgentKbFile('edit')" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="event.preventDefault();this.classList.remove('over');handleAgentKBDrop(event,'edit')">
+          <div class="kb-drop-zone-icon">📤</div>
+          <div class="kb-drop-zone-text">Click to upload or drag & drop</div>
+          <div class="kb-drop-zone-sub">PDF, DOCX, TXT, CSV, XLSX, MD · Multiple files</div>
+        </div>
+        <div id="editKbDocList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <div id="editKbEmptyMsg" style="text-align:center;padding:10px;color:var(--text-muted);font-size:12px;">No documents yet.</div>
+        <div style="display:flex;justify-content:flex-end;">
+          <button class="modal-btn danger" id="editKbClearBtn" onclick="clearAgentKBDocs('edit')" style="display:none;flex:0;padding:7px 14px;font-size:12px;">Clear All Docs</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn secondary" onclick="closeEditModal()">Cancel</button>
+      <button class="modal-btn primary" onclick="saveAgent()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═════ UNINSTALL CONFIRM ═════ -->
+<div class="confirm-overlay hidden" id="uninstallOverlay">
+  <div class="confirm-box">
+    <div class="confirm-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+    </div>
+    <h3>Delete Agent</h3>
+    <p id="uninstallMsg">This agent will be permanently deleted.</p>
+    <div class="confirm-btns">
+      <button class="confirm-btn cancel" onclick="closeUninstall()">Cancel</button>
+      <button class="confirm-btn delete" onclick="confirmUninstall()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═════ PASSCODE MODAL (Agent) ═════ -->
+<div class="passcode-overlay hidden" id="passcodeOverlay">
+  <div class="passcode-box">
+    <div class="passcode-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </div>
+    <h3 id="passcodeAgentName">Locked Agent</h3>
+    <p>Enter the passcode to access this agent.</p>
+    <div style="position:relative;width:100%;">
+      <input class="field-input" id="passcodeInput" type="password" placeholder="Enter passcode…" onkeydown="if(event.key==='Enter')verifyPasscode()"/>
+      <button style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:11px;font-family:var(--mono);" id="passcodeEyeBtn" onclick="togglePasscodeEye()">show</button>
+    </div>
+    <div class="passcode-err" id="passcodeErr">❌ Incorrect passcode</div>
+    <div class="passcode-footer">
+      <button class="modal-btn secondary" onclick="closePasscodeModal()" style="flex:1">Cancel</button>
+      <button class="modal-btn primary" onclick="verifyPasscode()" style="flex:1">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════
+// CORE UTILITIES
+// ════════════════════════════════════════════════════
+const $=id=>document.getElementById(id);
+let msgs=[],busy=false,tokens=0,attached=[];
+let isGeneralChat=true; // true = New Chat (General Knowledge), false = Agent mode
+function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function ts(){return new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
+function formatBytes(b){if(!b)return'';if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(1)+'KB';return(b/1048576).toFixed(1)+'MB';}
+
+// ════════════════════════════════════════════════════
+// THEME
+// ════════════════════════════════════════════════════
+let dark=localStorage.getItem('cpb_theme')==='dark';
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme',dark?'dark':'light');
+  $('themeIcon').innerHTML=dark
+    ?'<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'
+    :'<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+}
+function toggleTheme(){dark=!dark;localStorage.setItem('cpb_theme',dark?'dark':'light');applyTheme();}
+applyTheme();
+
+// ════════════════════════════════════════════════════
+// API KEY PASSCODE
+// ════════════════════════════════════════════════════
+const LS_API_PASSCODE = 'cpb_api_passcode';
+function getApiPasscode(){return localStorage.getItem(LS_API_PASSCODE)||'CPBSurvey';}
+
+function openApiKeysModal(){
+  // Show passcode gate first
+  $('apiPasscodeInput').value='';
+  $('apiPasscodeErr').style.display='none';
+  $('apiPasscodeOverlay').classList.remove('hidden');
+  setTimeout(()=>$('apiPasscodeInput').focus(),80);
+}
+function closeApiPasscodeModal(){$('apiPasscodeOverlay').classList.add('hidden');}
+function toggleApiPasscodeEye(){const i=$('apiPasscodeInput'),b=$('apiPasscodeEyeBtn');i.type=i.type==='password'?'text':'password';b.textContent=i.type==='password'?'show':'hide';}
+function verifyApiPasscode(){
+  const entered=$('apiPasscodeInput').value;
+  if(entered===getApiPasscode()){
+    $('apiPasscodeOverlay').classList.add('hidden');
+    renderProviderList();
+    $('apiKeysOverlay').classList.remove('hidden');
+  } else {
+    $('apiPasscodeErr').style.display='block';
+    $('apiPasscodeInput').value='';
+    $('apiPasscodeInput').focus();
+    $('apiPasscodeInput').style.borderColor='var(--accent)';
+    setTimeout(()=>$('apiPasscodeInput').style.borderColor='',1000);
+  }
+}
+function closeApiKeysModal(){$('apiKeysOverlay').classList.add('hidden');}
+
+// ════════════════════════════════════════════════════
+// MULTI-PROVIDER API KEYS
+// ════════════════════════════════════════════════════
+const PROVIDERS = [
+  {id:'anthropic', name:'Anthropic Claude', icon:'🟠', models:['claude-opus-4-6','claude-sonnet-4-6','claude-haiku-4-5-20251001'], defaultModel:'claude-sonnet-4-6', apiUrl:'https://api.anthropic.com/v1/messages', note:'claude-sonnet-4-6 (recommended)'},
+  {id:'openai', name:'ChatGPT / OpenAI', icon:'🟢', models:['gpt-4o','gpt-4o-mini','gpt-4-turbo'], defaultModel:'gpt-4o', apiUrl:'https://api.openai.com/v1/chat/completions', note:'gpt-4o (recommended)'},
+  {id:'gemini', name:'Google Gemini', icon:'🔵', models:['gemini-2.0-flash','gemini-1.5-pro','gemini-1.5-flash'], defaultModel:'gemini-2.0-flash', apiUrl:'https://generativelanguage.googleapis.com/v1beta/models', note:'gemini-2.0-flash (recommended)'},
+  {id:'groq', name:'Groq (Fast inference)', icon:'⚡', models:['llama-3.3-70b-versatile','llama-3.1-70b-versatile','mixtral-8x7b-32768'], defaultModel:'llama-3.3-70b-versatile', apiUrl:'https://api.groq.com/openai/v1/chat/completions', note:'llama-3.3-70b (fast & free tier)'},
+  {id:'mistral', name:'Mistral AI', icon:'🌊', models:['mistral-large-latest','mistral-medium-latest','mistral-small-latest'], defaultModel:'mistral-large-latest', apiUrl:'https://api.mistral.ai/v1/chat/completions', note:'mistral-large-latest'},
+  {id:'copilot', name:'Azure OpenAI / Copilot', icon:'🟦', models:['gpt-4o','gpt-4-turbo'], defaultModel:'gpt-4o', apiUrl:'', note:'Enter your Azure endpoint URL in key field as: endpoint|key'}
+];
+
+const LS_KEYS = 'cpb_api_keys';
+const LS_ACTIVE_PROVIDER = 'cpb_active_provider';
+let apiKeys = {};
+let activeProvider = 'groq';
+
+function loadApiKeys(){
+  try{apiKeys=JSON.parse(localStorage.getItem(LS_KEYS)||'{}');}catch{apiKeys={};}
+  activeProvider=localStorage.getItem(LS_ACTIVE_PROVIDER)||'groq';
+  updateApiStatusUI();
+}
+
+function saveApiKey(providerId, key){
+  apiKeys[providerId]=key;
+  localStorage.setItem(LS_KEYS, JSON.stringify(apiKeys));
+}
+
+function removeApiKey(providerId){
+  delete apiKeys[providerId];
+  localStorage.setItem(LS_KEYS, JSON.stringify(apiKeys));
+  if(activeProvider===providerId){
+    activeProvider='groq';
+    localStorage.setItem(LS_ACTIVE_PROVIDER,'groq');
+  }
+  updateApiStatusUI();
+}
+
+function setActiveProvider(providerId){
+  if(!apiKeys[providerId]){alert('Please enter and save an API key for this provider first.');return;}
+  activeProvider=providerId;
+  localStorage.setItem(LS_ACTIVE_PROVIDER, providerId);
+  updateApiStatusUI();
+  renderProviderList();
+}
+
+function updateApiStatusUI(){
+  const hasKey=!!(apiKeys[activeProvider]);
+  $('dot').className='key-dot'+(hasKey?' ok':'');
+  const prov=PROVIDERS.find(p=>p.id===activeProvider);
+  $('activeProviderName').textContent=hasKey?(prov?prov.icon+' '+prov.name+' ✓':'Connected'):'No API key';
+  $('sendBtn').disabled=!hasKey;
+}
+
+function renderProviderList(){
+  const list=$('providerList');
+  list.innerHTML='';
+  PROVIDERS.forEach(p=>{
+    const hasKey=!!(apiKeys[p.id]);
+    const isActive=activeProvider===p.id;
+    const item=document.createElement('div');
+    item.className='provider-item'+(hasKey?' connected':'');
+    item.innerHTML=`
+      <div class="provider-logo">${p.icon}</div>
+      <div class="provider-info">
+        <div class="provider-name">${escHtml(p.name)} ${isActive?'<span class="active-provider-badge">ACTIVE</span>':''}</div>
+        <div class="provider-model">${escHtml(p.note)}</div>
+      </div>
+      <div class="provider-actions">
+        ${hasKey?`<button class="provider-btn disconnect" onclick="removeApiKey('${p.id}');renderProviderList()">Remove</button>`:''}
+        ${hasKey&&!isActive?`<button class="provider-btn use" onclick="setActiveProvider('${p.id}')">Use</button>`:''}
+      </div>`;
+    const keyRow=document.createElement('div');
+    keyRow.style.cssText='grid-column:1/-1;';
+    if(!hasKey){
+      keyRow.innerHTML=`
+        <div class="provider-key-row" style="margin-top:8px;">
+          <input class="provider-key-input" id="key_${p.id}" type="password" placeholder="${p.id==='copilot'?'endpoint|apikey':'sk-…'}"/>
+          <button class="provider-btn connect" onclick="(function(){const v=$('key_${p.id}').value.trim();if(v){saveApiKey('${p.id}',v);setActiveProvider('${p.id}');renderProviderList();}})()">Connect</button>
+        </div>`;
+      item.appendChild(keyRow);
+    }
+    list.appendChild(item);
+  });
+}
+
+// ════════════════════════════════════════════════════
+// AGENT KB (per-agent, stored in agent object)
+// ════════════════════════════════════════════════════
+let createKbDocs = []; // staging for create modal
+let editKbDocs = [];   // staging for edit modal
+
+function buildAgentKBContext(agent){
+  if(!agent||!agent.kbDocs||!agent.kbDocs.length)return'';
+  let ctx='\n\n══ AGENT KNOWLEDGE BASE ══\nThe following documents are the PRIMARY knowledge source for this agent. Always reference these first.\n\n';
+  agent.kbDocs.forEach((d,i)=>{
+    const snippet=d.content.slice(0,8000);
+    ctx+=`--- Knowledge Document ${i+1}: ${d.name} ---\n${snippet}${d.content.length>8000?'\n[…truncated]':''}\n\n`;
+  });
+  ctx+='══ END KNOWLEDGE BASE ══\n';
+  return ctx;
+}
+
+function updateKBIndicator(){
+  const ag=getAgent(currentAgentId);
+  const docs=ag&&ag.kbDocs?ag.kbDocs:[];
+  if(docs.length>0&&!isGeneralChat){
+    $('kbIndicator').style.display='flex';
+    $('kbDocCount').textContent=docs.length+' KB doc'+(docs.length>1?'s':'');
+  } else {
+    $('kbIndicator').style.display='none';
+  }
+}
+
+function triggerAgentKbFile(mode){
+  $('agentKbFileInput').dataset.mode=mode;
+  $('agentKbFileInput').click();
+}
+
+async function handleAgentKBFileInput(inp){
+  const files=Array.from(inp.files);inp.value='';
+  const mode=inp.dataset.mode||'create';
+  for(const f of files){
+    const doc=await readKBFile(f);
+    if(mode==='create'){createKbDocs.push(doc);renderAgentKBDocList('create',createKbDocs,'createKbDocList','createKbEmptyMsg');}
+    else{editKbDocs.push(doc);renderAgentKBDocList('edit',editKbDocs,'editKbDocList','editKbEmptyMsg');}
+  }
+}
+
+async function handleAgentKBDrop(e, mode){
+  const files=Array.from(e.dataTransfer.files||[]);
+  for(const f of files){
+    const doc=await readKBFile(f);
+    if(mode==='create'){createKbDocs.push(doc);renderAgentKBDocList('create',createKbDocs,'createKbDocList','createKbEmptyMsg');}
+    else{editKbDocs.push(doc);renderAgentKBDocList('edit',editKbDocs,'editKbDocList','editKbEmptyMsg');}
+  }
+}
+
+async function readKBFile(f){
+  const mtype=getFileMimeType(f.name);
+  try{
+    let content='';
+    if(mtype==='pdf'){const ab=await readAsArrayBuffer(f);const r=await extractPDF(ab);content=r.text;}
+    else if(mtype==='docx'){const ab=await readAsArrayBuffer(f);const r=await extractDOCX(ab);content=r.text;}
+    else if(mtype==='xlsx'){const ab=await readAsArrayBuffer(f);const r=extractXLSX(ab);content=r.text;}
+    else{content=await readAsText(f);}
+    return{id:'kb_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),name:f.name,content,size:f.size,type:mtype,addedAt:new Date().toISOString()};
+  }catch(e){return{id:'kb_err_'+Date.now(),name:f.name,content:'[Read error: '+e.message+']',size:f.size,type:'text',addedAt:new Date().toISOString()};}
+}
+
+function renderAgentKBDocList(mode, docs, listId, emptyId){
+  const list=$(listId),empty=$(emptyId);
+  list.innerHTML='';
+  if(!docs.length){empty.style.display='block';if(mode==='edit')$('editKbClearBtn').style.display='none';return;}
+  empty.style.display='none';
+  if(mode==='edit')$('editKbClearBtn').style.display='';
+  docs.forEach((d,i)=>{
+    const item=document.createElement('div');
+    item.className='kb-doc-item';
+    const icon=d.type==='pdf'?'📕':d.type==='docx'?'📘':d.type==='xlsx'?'📗':d.type==='csv'?'📊':'📄';
+    item.innerHTML=`
+      <div class="kb-doc-icon">${icon}</div>
+      <div class="kb-doc-info">
+        <div class="kb-doc-name">${escHtml(d.name)}</div>
+        <div class="kb-doc-meta">${formatBytes(d.size)} · ${Math.ceil(d.content.length/4)} tokens</div>
+      </div>
+      <button class="kb-doc-remove" onclick="removeAgentKBDoc('${mode}',${i})" title="Remove">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      </button>`;
+    list.appendChild(item);
+  });
+}
+
+function removeAgentKBDoc(mode, idx){
+  if(mode==='create'){createKbDocs.splice(idx,1);renderAgentKBDocList('create',createKbDocs,'createKbDocList','createKbEmptyMsg');}
+  else{editKbDocs.splice(idx,1);renderAgentKBDocList('edit',editKbDocs,'editKbDocList','editKbEmptyMsg');}
+}
+
+function clearAgentKBDocs(mode){
+  if(!confirm('Remove all Knowledge Base documents for this agent?'))return;
+  if(mode==='edit'){editKbDocs=[];renderAgentKBDocList('edit',editKbDocs,'editKbDocList','editKbEmptyMsg');}
+}
+
+// Tab switching for agent modals
+function switchAgentTab(btn, paneId){
+  const modal=btn.closest('.modal-box');
+  modal.querySelectorAll('.modal-tab').forEach(t=>t.classList.remove('active'));
+  modal.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  $(paneId).classList.add('active');
+}
+
+// ════════════════════════════════════════════════════
+// AGENT STORE
+// ════════════════════════════════════════════════════
+const LS_AGENTS='cpb_agents';
+let AGENTS=[];
+let currentAgentId=null;
+let editingAgentId=null;
+let uninstallAgentId=null;
+let editColorSelected='color-red';
+let createColorSelected='color-blue';
+
+const AVATAR_SVGS={
+  _default:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+  survey:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+  geo:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>'
+};
+
+function loadAgents(){
+  try{AGENTS=JSON.parse(localStorage.getItem(LS_AGENTS)||'[]');}catch{AGENTS=[];}
+}
+function saveAgentsToLS(){localStorage.setItem(LS_AGENTS,JSON.stringify(AGENTS));}
+function getAgent(id){return AGENTS.find(a=>a.id===id);}
+function getAvatarSvg(id){return AVATAR_SVGS[id]||AVATAR_SVGS._default;}
+
+function renderAgentList(filter=''){
+  const list=$('agentList');
+  list.innerHTML='';
+  const q=filter.toLowerCase();
+  const filtered=AGENTS.filter(a=>a.name.toLowerCase().includes(q)||a.desc.toLowerCase().includes(q)||(a.category||'').toLowerCase().includes(q));
+  $('agentCount').textContent=AGENTS.length;
+
+  filtered.forEach(agent=>{
+    const item=document.createElement('div');
+    item.className='agent-item'+(agent.id===currentAgentId?' active':'');
+    item.id='agent-'+agent.id;
+    const kbBadge=agent.kbDocs&&agent.kbDocs.length?`<span style="font-size:9px;background:var(--green-light);color:var(--green);padding:1px 5px;border-radius:6px;margin-left:4px;font-weight:700;">KB</span>`:'';
+    item.innerHTML=`
+      <div class="agent-avatar ${agent.color}">${getAvatarSvg(agent.id)}</div>
+      <div class="agent-info" onclick="selectAgentById('${agent.id}')">
+        <div class="agent-name">${agent.passcode?'🔒 ':''} ${escHtml(agent.name)}${kbBadge}</div>
+        <div class="agent-desc">${escHtml(agent.desc)}</div>
+      </div>
+      <div class="agent-actions">
+        <button class="agent-action-btn" title="Edit" onclick="event.stopPropagation();requestEdit('${agent.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="agent-action-btn danger" title="Delete" onclick="event.stopPropagation();requestUninstall('${agent.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+      </div>`;
+    item.querySelector('.agent-info').style.cursor='pointer';
+    list.appendChild(item);
+  });
+
+  const createBtn=document.createElement('button');
+  createBtn.className='create-agent-btn';
+  createBtn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Create Agent';
+  createBtn.onclick=openCreateModal;
+  list.appendChild(createBtn);
+}
+
+function filterAgents(q){renderAgentList(q);}
+function setActiveNav(btn){document.querySelectorAll('.sb-nav-item').forEach(el=>el.classList.remove('active'));btn.classList.add('active');}
+
+// ════════════════════════════════════════════════════
+// AGENT SELECTION
+// ════════════════════════════════════════════════════
+function selectAgentById(id){_doSelectAgent(id);}
+function _doSelectAgent(id){
+  isGeneralChat=false;
+  currentAgentId=id;
+  document.querySelectorAll('.agent-item').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.sb-nav-item').forEach(el=>el.classList.remove('active'));
+  const el=document.getElementById('agent-'+id);
+  if(el)el.classList.add('active');
+  clearChat();
+}
+
+function startGeneralChat(){
+  isGeneralChat=true;
+  currentAgentId=null;
+  document.querySelectorAll('.agent-item').forEach(el=>el.classList.remove('active'));
+  clearChat();
+}
+
+// ════════════════════════════════════════════════════
+// EDIT / CREATE / DELETE AGENTS
+// ════════════════════════════════════════════════════
+function requestEdit(id){
+  const ag=getAgent(id);
+  if(ag&&ag.passcode&&ag.passcode.trim()) openPasscodeModal({type:'edit',id});
+  else openEditModal(id);
+}
+
+function requestUninstall(id){
+  const ag=getAgent(id);
+  if(ag&&ag.passcode&&ag.passcode.trim()) openPasscodeModal({type:'uninstall',id});
+  else openUninstall(id);
+}
+
+function openEditModal(id){
+  const ag=getAgent(id); if(!ag)return;
+  editingAgentId=id; editColorSelected=ag.color;
+  editKbDocs=ag.kbDocs?JSON.parse(JSON.stringify(ag.kbDocs)):[];
+  $('editModalTitle').textContent='Edit Agent';
+  $('editName').value=ag.name; $('editDesc').value=ag.desc;
+  $('editCategory').value=ag.category||''; $('editInstructions').value=ag.instructions||'';
+  $('editStarters').value=ag.starters||''; $('editPasscode').value=ag.passcode||'';
+  const prev=$('avatarPreview');
+  prev.className='modal-avatar-preview '+ag.color;
+  prev.innerHTML=getAvatarSvg(id);
+  document.querySelectorAll('#colorPicker .color-swatch').forEach(s=>s.classList.toggle('selected',s.dataset.color===ag.color));
+  // Reset tabs to Setup
+  const modal=$('editAgentOverlay');
+  modal.querySelectorAll('.modal-tab').forEach(t=>t.classList.remove('active'));
+  modal.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  modal.querySelector('.modal-tab').classList.add('active');
+  $('editTabSetup').classList.add('active');
+  renderAgentKBDocList('edit',editKbDocs,'editKbDocList','editKbEmptyMsg');
+  $('editAgentOverlay').classList.remove('hidden');
+}
+function closeEditModal(){$('editAgentOverlay').classList.add('hidden');editingAgentId=null;}
+
+function selectColor(el,color){
+  editColorSelected=color;
+  document.querySelectorAll('#colorPicker .color-swatch').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+  $('avatarPreview').className='modal-avatar-preview '+color;
+}
+
+function saveAgent(){
+  if(!editingAgentId)return;
+  const name=$('editName').value.trim();
+  if(!name){$('editName').focus();$('editName').style.borderColor='var(--accent)';return;}
+  const ag=getAgent(editingAgentId); if(!ag)return;
+  ag.name=name; ag.desc=$('editDesc').value.trim(); ag.category=$('editCategory').value.trim();
+  ag.instructions=$('editInstructions').value.trim(); ag.starters=$('editStarters').value.trim();
+  ag.passcode=$('editPasscode').value.trim(); ag.color=editColorSelected;
+  ag.kbDocs=editKbDocs;
+  saveAgentsToLS(); renderAgentList(); closeEditModal();
+  if(currentAgentId===editingAgentId){
+    const badge=ag.category?`<span class="topbar-agent-badge">${escHtml(ag.category)}</span>`:'';
+    $('topTitle').innerHTML=escHtml(ag.name)+badge;
+    updateKBIndicator();
+  }
+}
+
+function openUninstall(id){
+  const ag=getAgent(id); if(!ag)return;
+  uninstallAgentId=id;
+  $('uninstallMsg').textContent=`"${ag.name}" will be permanently removed.`;
+  $('uninstallOverlay').classList.remove('hidden');
+}
+function closeUninstall(){$('uninstallOverlay').classList.add('hidden');uninstallAgentId=null;}
+function confirmUninstall(){
+  if(!uninstallAgentId)return;
+  AGENTS=AGENTS.filter(a=>a.id!==uninstallAgentId);
+  saveAgentsToLS();
+  if(currentAgentId===uninstallAgentId){currentAgentId=null;isGeneralChat=true;clearChat();}
+  closeUninstall(); renderAgentList();
+}
+
+function openCreateModal(){
+  createColorSelected='color-blue';
+  createKbDocs=[];
+  ['createName','createDesc','createCategory','createInstructions','createStarters','createPasscode'].forEach(id=>$(id).value='');
+  $('createAvatarPreview').className='modal-avatar-preview color-blue';
+  $('createAvatarPreview').innerHTML=AVATAR_SVGS._default;
+  document.querySelectorAll('#createColorPicker .color-swatch').forEach(s=>s.classList.toggle('selected',s.dataset.color==='color-blue'));
+  // Reset tabs
+  const modal=$('createAgentOverlay');
+  modal.querySelectorAll('.modal-tab').forEach(t=>t.classList.remove('active'));
+  modal.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  modal.querySelector('.modal-tab').classList.add('active');
+  $('createTabSetup').classList.add('active');
+  renderAgentKBDocList('create',createKbDocs,'createKbDocList','createKbEmptyMsg');
+  $('createAgentOverlay').classList.remove('hidden');
+}
+function closeCreateModal(){$('createAgentOverlay').classList.add('hidden');}
+
+function selectCreateColor(el,color){
+  createColorSelected=color;
+  document.querySelectorAll('#createColorPicker .color-swatch').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+  $('createAvatarPreview').className='modal-avatar-preview '+color;
+}
+
+function createAgent(){
+  const name=$('createName').value.trim();
+  if(!name){$('createName').focus();$('createName').style.borderColor='var(--accent)';return;}
+  const id='custom_'+Date.now();
+  AGENTS.push({
+    id, name, desc:$('createDesc').value.trim()||'Custom Agent',
+    color:createColorSelected, category:$('createCategory').value.trim()||'Custom',
+    version:'1.0.0', passcode:$('createPasscode').value.trim(),
+    instructions:$('createInstructions').value.trim()||'You are a helpful CPB Contractors survey assistant. Always reference the Knowledge Base documents when answering questions.',
+    starters:$('createStarters').value.trim(),
+    kbDocs:createKbDocs
+  });
+  saveAgentsToLS(); renderAgentList(); closeCreateModal();
+  selectAgentById(id);
+  setTimeout(()=>{const el=document.getElementById('agent-'+id);if(el){el.classList.add('active');el.scrollIntoView({block:'nearest'});}},50);
+}
+
+// ════════════════════════════════════════════════════
+// PASSCODE MODAL (Agent)
+// ════════════════════════════════════════════════════
+let pendingPasscodeAction=null;
+function openPasscodeModal(action){
+  const ag=getAgent(action.id);
+  pendingPasscodeAction=action;
+  $('passcodeAgentName').textContent='🔒 '+(ag?ag.name:'Locked Agent');
+  $('passcodeInput').value='';
+  $('passcodeErr').style.display='none';
+  $('passcodeOverlay').classList.remove('hidden');
+  setTimeout(()=>$('passcodeInput').focus(),80);
+}
+function closePasscodeModal(){$('passcodeOverlay').classList.add('hidden');pendingPasscodeAction=null;}
+function togglePasscodeEye(){const i=$('passcodeInput'),b=$('passcodeEyeBtn');i.type=i.type==='password'?'text':'password';b.textContent=i.type==='password'?'show':'hide';}
+function verifyPasscode(){
+  const ag=getAgent(pendingPasscodeAction?.id); if(!ag)return;
+  if($('passcodeInput').value===ag.passcode){
+    $('passcodeOverlay').classList.add('hidden');
+    const action=pendingPasscodeAction; pendingPasscodeAction=null;
+    if(action.type==='edit')openEditModal(action.id);
+    else if(action.type==='uninstall')openUninstall(action.id);
+  } else {
+    $('passcodeErr').style.display='block';
+    $('passcodeInput').value='';$('passcodeInput').focus();
+    $('passcodeInput').style.borderColor='var(--accent)';
+    setTimeout(()=>$('passcodeInput').style.borderColor='',1000);
+  }
+}
+
+// ════════════════════════════════════════════════════
+// CHAT
+// ════════════════════════════════════════════════════
+function clearChat(){
+  msgs=[];tokens=0;attached=[];
+  $('chat').innerHTML='';$('fileChips').innerHTML='';
+  $('statLat').textContent='—';
+  const ag=!isGeneralChat?getAgent(currentAgentId):null;
+  const badge=ag&&ag.category?`<span class="topbar-agent-badge">${escHtml(ag.category)}</span>`:'';
+  $('topTitle').innerHTML=(ag?escHtml(ag.name):'General Knowledge')+badge;
+  const es=document.createElement('div');es.className='empty-state';es.id='emptyState';
+  es.innerHTML=makeEmptyHTML();$('chat').appendChild(es);
+  updateKBIndicator();
+  updateStats();
+}
+
+function makeEmptyHTML(){
+  if(isGeneralChat){
+    return`
+      <div class="empty-logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+      <div class="empty-title">General Knowledge</div>
+      <div class="empty-sub">Ask me anything — surveying, engineering, construction, standards, regulations, or general questions. No agent selected.</div>
+      <div class="sugs">
+        <button class="sug" onclick="useSug(this)">What is MGA2020 coordinate system?</button>
+        <button class="sug" onclick="useSug(this)">Explain total station surveying</button>
+        <button class="sug" onclick="useSug(this)">What are Australian survey standards?</button>
+        <button class="sug" onclick="useSug(this)">Generate a survey QA checklist</button>
+        <button class="sug" onclick="useSug(this)">What is GDA2020?</button>
+        <button class="sug" onclick="useSug(this)">Explain GPS RTK surveying</button>
+      </div>`;
+  }
+  const ag=getAgent(currentAgentId);
+  const starters=ag&&ag.starters?ag.starters.split('\n').filter(s=>s.trim()):[
+    'How can I help with your survey?','What do you need assistance with?'
+  ];
+  const kbCount=ag&&ag.kbDocs?ag.kbDocs.length:0;
+  const kbBanner=kbCount?`<div class="kb-banner"><span class="kb-banner-icon">📚</span><span class="kb-banner-text"><strong>${kbCount} Knowledge Base doc${kbCount>1?'s':''} loaded.</strong> This agent will reference uploaded documents as primary knowledge.</span></div>`:'';
+  return`
+    ${kbBanner}
+    <div class="empty-logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+    <div class="empty-title">${ag?escHtml(ag.name):'CPB Surveyor AI'}</div>
+    <div class="empty-sub">${ag?escHtml(ag.desc):'Internal Survey System — CPB Contractors Australia'}</div>
+    <div class="sugs">${starters.map(s=>`<button class="sug" onclick="useSug(this)">${escHtml(s)}</button>`).join('')}</div>`;
+}
+
+function removeEmpty(){const e=$('emptyState');if(e)e.remove();}
+
+function addMsg(role,text,display,extras,snapshotAttached){
+  removeEmpty();
+  const g=document.createElement('div');g.className='msg-group '+role;
+  const attHTML=role==='user'?makeAttachmentPreviews(snapshotAttached):'';
+  const ag=!isGeneralChat?getAgent(currentAgentId):null;
+  const agLabel=ag?ag.name:'General AI';
+  const agAvatar=ag?ag.name.slice(0,2).toUpperCase():'AI';
+  g.innerHTML=`<div class="msg-avatar ${role}">${role==='ai'?agAvatar:'You'}</div>
+    <div class="msg-content">
+      <div class="msg-name">${role==='ai'?escHtml(agLabel):'You'}</div>
+      ${attHTML}
+      <div class="bubble">${fmt(display||text)}</div>
+      ${extras||''}
+      <div class="msg-time">${ts()}</div>
+    </div>`;
+  $('chat').appendChild(g);
+  $('chatWrap').scrollTop=$('chatWrap').scrollHeight;
+  updateStats();return g;
+}
+
+function addThinking(){
+  removeEmpty();
+  const d=document.createElement('div');d.className='thinking-row';d.id='thinking';
+  const ag=!isGeneralChat?getAgent(currentAgentId):null;
+  const av=ag?ag.name.slice(0,2).toUpperCase():'AI';
+  d.innerHTML=`<div class="msg-avatar ai">${av}</div><div class="thinking-dots"><div class="tdot"></div><div class="tdot"></div><div class="tdot"></div></div>`;
+  $('chat').appendChild(d);$('chatWrap').scrollTop=$('chatWrap').scrollHeight;
+}
+
+function showErr(msg){$('errToast').textContent='⚠ '+msg;$('errToast').classList.add('on');$('dot').className='key-dot err';setTimeout(()=>{$('errToast').classList.remove('on');updateApiStatusUI();},6000);}
+
+function updateStats(lat){
+  const c=msgs.filter(m=>m.role==='user').length;
+  $('statMsgs').textContent=c+(c===1?' message':' messages');
+  if(lat)$('statLat').textContent=lat+'ms';
+}
+
+function grow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,160)+'px';}
+function onKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();if(!$('sendBtn').disabled)send();}}
+function useSug(btn){$('txt').value=btn.textContent;grow($('txt'));$('txt').focus();}
+
+// ════════════════════════════════════════════════════
+// SEND — MULTI-PROVIDER
+// ════════════════════════════════════════════════════
+async function send(){
+  const text=$('txt').value.trim();
+  const key=apiKeys[activeProvider];
+
+  if(!key){openApiKeysModal();return;}
+  if(!text||busy)return;
+
+  $('errToast').classList.remove('on');
+  busy=true;$('sendBtn').disabled=true;
+  $('txt').value='';$('txt').style.height='auto';
+
+  const ag=!isGeneralChat?getAgent(currentAgentId):null;
+  const kbCtx=ag?buildAgentKBContext(ag):'';
+
+  let sys;
+  if(isGeneralChat){
+    sys=`You are a knowledgeable AI assistant for CPB Contractors Australia — an expert in surveying, civil engineering, construction, and related fields.
+
+## GENERAL KNOWLEDGE MODE
+- Answer questions on any topic with accuracy and helpfulness
+- For surveying questions: apply Australian standards (AS/NZS), GDA2020/MGA2020, and industry best practices
+- For general questions: provide clear, well-structured answers
+- Today: ${new Date().toLocaleDateString('en-AU',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}
+- If unsure, say so clearly. Do not hallucinate facts.`;
+  } else {
+    sys=`${ag.instructions}
+
+${kbCtx}
+
+## ADDITIONAL CONTEXT
+- You are the ${ag.name} operating within CPB Contractors Australia's Internal Survey System
+- Today: ${new Date().toLocaleDateString('en-AU',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}
+- Coordinate system default: MGA2020 Zone 55 (GDA2020) unless specified
+- If Knowledge Base documents are provided above, ALWAYS reference them as the primary source for your answers
+- For survey data: apply Australian standards (AS/NZS) and CPB internal procedures
+- Do not hallucinate facts — if unsure, state so clearly`;
+  }
+
+  const{text:ctxText,images}=buildCtx();
+  const hasImages=images.length>0;
+  const full=text+ctxText;
+  const attachedNames=attached.filter(a=>a.status==='ok').map(f=>f.name);
+  const display=text+(attachedNames.length?'\n\n📎 '+attachedNames.join(', '):'');
+
+  msgs.push({role:'user',content:full});
+  const snapshotAttached=attached.filter(a=>a.status==='ok').map(a=>({...a}));
+  addMsg('user',full,display,null,snapshotAttached);
+  attached=[];renderChips();
+
+  addThinking();
+  const t0=Date.now();
+
+  try{
+    let fullReply='';
+
+    if(activeProvider==='anthropic'){
+      fullReply=await callAnthropic(sys,msgs,key,hasImages,images);
+    } else if(activeProvider==='gemini'){
+      fullReply=await callGemini(sys,msgs,key);
+    } else {
+      fullReply=await callOpenAICompat(sys,msgs,key,hasImages,images);
+    }
+
+    $('thinking')&&$('thinking').remove();
+
+    const g=document.createElement('div');g.className='msg-group ai';
+    const bubbleId='bubble'+Math.random().toString(36).slice(2,8);
+    const agLabel=ag?ag.name:'General AI';
+    const agAvatar=ag?ag.name.slice(0,2).toUpperCase():'AI';
+    g.innerHTML=`<div class="msg-avatar ai">${escHtml(agAvatar)}</div>
+      <div class="msg-content">
+        <div class="msg-name">${escHtml(agLabel)}</div>
+        <div class="bubble" id="${bubbleId}">${fmt(fullReply)}</div>
+        <div class="msg-time">${ts()} · via ${PROVIDERS.find(p=>p.id===activeProvider)?.name||activeProvider}</div>
+      </div>`;
+    removeEmpty();
+    $('chat').appendChild(g);
+    msgs.push({role:'assistant',content:fullReply});
+    tokens+=Math.ceil(fullReply.length/4);
+    $('dot').className='key-dot ok';
+    updateStats(Date.now()-t0);
+    $('chatWrap').scrollTop=$('chatWrap').scrollHeight;
+
+    const codeBlocks=extractCodeBlocks(fullReply);
+    if(codeBlocks.length>0&&detectCodeRequest(text)){
+      const{lang,ext}=detectCodeLang(text);
+      addDocCard('cpb-survey-'+lang+'-'+Date.now()+'.'+ext,codeBlocks[0].code,document.getElementById(bubbleId).parentElement);
+    } else if(detectDocRequest(text)&&fullReply.length>200){
+      addDocCard('cpb-report-'+Date.now()+'.txt',fullReply.replace(/\[DOCUMENT:[^\]]*\]/gi,'').replace(/\[\/DOCUMENT\]/gi,'').trim(),document.getElementById(bubbleId).parentElement);
+    }
+  }catch(err){
+    $('thinking')&&$('thinking').remove();
+    showErr(err.message||'Network error');
+    msgs.pop();
+    $('dot').className='key-dot err';
+  }
+  busy=false;
+  $('sendBtn').disabled=!apiKeys[activeProvider];
+  $('txt').focus();
+}
+
+// ─── Anthropic Claude ────────────────────────────
+async function callAnthropic(sys, msgs, key, hasImages, images){
+  const prov=PROVIDERS.find(p=>p.id==='anthropic');
+  const model=prov.defaultModel;
+  const apiMsgs=[];
+
+  msgs.slice(0,-1).forEach(m=>{
+    if(hasImages&&m===msgs[msgs.length-2]){
+      const content=[{type:'text',text:m.content}];
+      images.forEach(img=>content.push({type:'image',source:{type:'base64',media_type:img.mimeType,data:img.b64}}));
+      apiMsgs.push({role:'user',content});
+    } else {
+      apiMsgs.push({role:m.role==='assistant'?'assistant':'user',content:m.content});
+    }
+  });
+  const lastContent=hasImages?[{type:'text',text:msgs[msgs.length-1].content},...images.map(img=>({type:'image',source:{type:'base64',media_type:img.mimeType,data:img.b64}}))]:[{type:'text',text:msgs[msgs.length-1].content}];
+  apiMsgs.push({role:'user',content:lastContent});
+
+  const res=await fetch(prov.apiUrl,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
+    body:JSON.stringify({model,max_tokens:4096,system:sys,messages:apiMsgs})
+  });
+  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||'Anthropic error '+res.status);}
+  const data=await res.json();
+  return data.content?.map(b=>b.text||'').join('')||'';
+}
+
+// ─── OpenAI-compatible ──────────────────────────
+async function callOpenAICompat(sys, msgs, key, hasImages, images){
+  const prov=PROVIDERS.find(p=>p.id===activeProvider);
+  let url=prov.apiUrl;
+  let authHeader='Bearer '+key;
+
+  if(activeProvider==='copilot'&&key.includes('|')){
+    const parts=key.split('|');
+    url=parts[0];authHeader='api-key '+parts[1];
+  }
+
+  let model=prov.defaultModel;
+  if(activeProvider==='groq'&&hasImages)model='meta-llama/llama-4-scout-17b-16e-instruct';
+
+  const apiMsgs=[{role:'system',content:sys}];
+  msgs.slice(0,-1).forEach(m=>apiMsgs.push({role:m.role==='assistant'?'assistant':'user',content:m.content}));
+
+  let lastContent;
+  if(hasImages&&(activeProvider==='openai'||activeProvider==='groq')){
+    lastContent=[{type:'text',text:msgs[msgs.length-1].content}];
+    images.forEach(img=>lastContent.push({type:'image_url',image_url:{url:`data:${img.mimeType};base64,${img.b64}`}}));
+  } else {
+    lastContent=msgs[msgs.length-1].content;
+  }
+  apiMsgs.push({role:'user',content:lastContent});
+
+  const res=await fetch(url,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':authHeader},
+    body:JSON.stringify({model,max_tokens:4096,temperature:.7,messages:apiMsgs,stream:true})
+  });
+  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||'API error '+res.status);}
+
+  let fullReply='';
+  const reader=res.body.getReader();const decoder=new TextDecoder();let buf='';
+  while(true){
+    const{done,value}=await reader.read();if(done)break;
+    buf+=decoder.decode(value,{stream:true});
+    const lines=buf.split('\n');buf=lines.pop()||'';
+    for(const line of lines){
+      if(!line.startsWith('data:'))continue;
+      const d=line.slice(5).trim();if(d==='[DONE]')break;
+      try{const j=JSON.parse(d);const delta=j.choices?.[0]?.delta?.content||'';if(delta)fullReply+=delta;}catch{}
+    }
+  }
+  return fullReply;
+}
+
+// ─── Google Gemini ───────────────────────────────
+async function callGemini(sys, msgs, key){
+  const model='gemini-2.0-flash';
+  const url=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  const contents=msgs.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}));
+  const res=await fetch(url,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      systemInstruction:{parts:[{text:sys}]},
+      contents,
+      generationConfig:{maxOutputTokens:4096,temperature:.7}
+    })
+  });
+  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||'Gemini error '+res.status);}
+  const data=await res.json();
+  return data.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('')||'';
+}
+
+// ════════════════════════════════════════════════════
+// FILE HANDLING
+// ════════════════════════════════════════════════════
+function getFileIcon(name){
+  const ext=(name.split('.').pop()||'').toLowerCase();
+  const map={pdf:'📕',docx:'📘',doc:'📘',xlsx:'📗',xls:'📗',csv:'📊',json:'🔧',xml:'🔧',yaml:'🔧',yml:'🔧',md:'📝',txt:'📄',log:'📋',tsv:'📊',py:'🐍',js:'📜',ts:'📜'};
+  return map[ext]||'📎';
+}
+function getFileMimeType(name){
+  const ext=(name.split('.').pop()||'').toLowerCase();
+  if(ext==='pdf')return'pdf';
+  if(['docx','doc'].includes(ext))return'docx';
+  if(['xlsx','xls'].includes(ext))return'xlsx';
+  if(['csv','tsv'].includes(ext))return'csv';
+  if(['json'].includes(ext))return'json';
+  if(['jpg','jpeg','png','gif','webp','bmp','svg'].includes(ext))return'img';
+  return'text';
+}
+
+async function extractPDF(arrayBuffer){
+  try{
+    if(!window.pdfjsLib)throw new Error('PDF.js not loaded');
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const pdf=await pdfjsLib.getDocument({data:arrayBuffer}).promise;
+    const numPages=Math.min(pdf.numPages,30);
+    let text=`[PDF — ${pdf.numPages} page${pdf.numPages>1?'s':''}]\n\n`;
+    for(let i=1;i<=numPages;i++){
+      const page=await pdf.getPage(i);
+      const tc=await page.getTextContent();
+      const pageText=tc.items.map(s=>s.str).join(' ').trim();
+      if(pageText)text+=`--- Page ${i} ---\n${pageText}\n\n`;
+    }
+    return{text:text.trim(),pages:pdf.numPages};
+  }catch(e){return{text:`[PDF extraction failed: ${e.message}]`,pages:0};}
+}
+
+async function extractDOCX(arrayBuffer){
+  try{
+    if(!window.mammoth)throw new Error('mammoth.js not loaded');
+    const result=await mammoth.extractRawText({arrayBuffer});
+    return{text:result.value.trim()||'[Empty document]'};
+  }catch(e){return{text:`[DOCX extraction failed: ${e.message}]`};}
+}
+
+function extractXLSX(arrayBuffer){
+  try{
+    if(!window.XLSX)throw new Error('SheetJS not loaded');
+    const wb=XLSX.read(arrayBuffer,{type:'array'});
+    let text='';
+    wb.SheetNames.forEach(sheetName=>{
+      const ws=wb.Sheets[sheetName];
+      const csv=XLSX.utils.sheet_to_csv(ws);
+      if(csv.trim())text+=`--- Sheet: ${sheetName} ---\n${csv}\n\n`;
+    });
+    return{text:text.trim()||'[Empty spreadsheet]',sheets:wb.SheetNames.length};
+  }catch(e){return{text:`[XLSX extraction failed: ${e.message}]`,sheets:0};}
+}
+
+async function handleFile(inp,kind){
+  const f=inp.files[0];if(!f)return;inp.value='';
+  const mtype=kind==='img'?'img':getFileMimeType(f.name);
+  const idx=attached.length;
+  attached.push({name:f.name,kind:mtype,content:'',status:'processing',size:f.size});
+  renderChips();
+  try{
+    if(mtype==='img'){
+      const dataUrl=await readAsDataURL(f);const b64=dataUrl.split(',')[1];
+      attached[idx]={name:f.name,kind:'img',content:dataUrl,b64,mimeType:f.type||'image/jpeg',status:'ok',size:f.size};
+    } else if(mtype==='pdf'){
+      const ab=await readAsArrayBuffer(f);const{text,pages}=await extractPDF(ab);
+      const ab2=await readAsArrayBuffer(f);const b64=arrayBufferToBase64(ab2);
+      attached[idx]={name:f.name,kind:'pdf',content:text,b64,mimeType:'application/pdf',status:'ok',size:f.size,pages};
+    } else if(mtype==='docx'){
+      const ab=await readAsArrayBuffer(f);const{text}=await extractDOCX(ab);
+      attached[idx]={name:f.name,kind:'docx',content:text,status:'ok',size:f.size};
+    } else if(mtype==='xlsx'){
+      const ab=await readAsArrayBuffer(f);const{text,sheets}=extractXLSX(ab);
+      attached[idx]={name:f.name,kind:'xlsx',content:text,status:'ok',size:f.size,sheets};
+    } else if(mtype==='csv'){
+      const text=await readAsText(f);
+      attached[idx]={name:f.name,kind:'csv',content:`[CSV — ${text.split('\n').length} rows]\n${text}`,status:'ok',size:f.size};
+    } else if(mtype==='json'){
+      const text=await readAsText(f);let pretty=text;
+      try{pretty=JSON.stringify(JSON.parse(text),null,2);}catch{}
+      attached[idx]={name:f.name,kind:'json',content:'[JSON]\n'+pretty,status:'ok',size:f.size};
+    } else {
+      const text=await readAsText(f);
+      attached[idx]={name:f.name,kind:'text',content:text,status:'ok',size:f.size};
+    }
+  }catch(e){attached[idx]={...attached[idx],status:'error',error:e.message};}
+  renderChips();
+}
+
+function readAsText(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=()=>rej(new Error('Read failed'));r.readAsText(f);});}
+function readAsDataURL(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=()=>rej(new Error('Read failed'));r.readAsDataURL(f);});}
+function readAsArrayBuffer(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=()=>rej(new Error('Read failed'));r.readAsArrayBuffer(f);});}
+function arrayBufferToBase64(ab){const bytes=new Uint8Array(ab);let bin='';bytes.forEach(b=>bin+=String.fromCharCode(b));return btoa(bin);}
+
+function renderChips(){
+  $('fileChips').innerHTML='';
+  attached.forEach((f,i)=>{
+    const c=document.createElement('div');
+    c.className='chip'+(f.status==='processing'?' chip-processing':'');
+    const icon=f.kind==='img'?'🖼️':getFileIcon(f.name);
+    const badge=f.status==='processing'?'⏳':f.status==='error'?'⚠':'✓';
+    c.innerHTML=`<span>${icon} ${escHtml(f.name)}</span><span style="font-size:10px;margin-left:2px">${badge}</span><button class="chip-x" onclick="rmFile(${i})">×</button>`;
+    $('fileChips').appendChild(c);
+  });
+}
+function rmFile(i){attached.splice(i,1);renderChips();}
+
+function buildCtx(){
+  if(!attached.length)return{text:'',images:[]};
+  const images=[];const textParts=[];
+  attached.forEach(f=>{
+    if(f.status==='processing'||f.status==='error')return;
+    if(f.kind==='img'){images.push({b64:f.b64,mimeType:f.mimeType,name:f.name});textParts.push(`[Attached image: ${f.name}]`);}
+    else{const maxChars=12000;const content=f.content.length>maxChars?f.content.slice(0,maxChars)+`\n\n[…truncated]`:f.content;textParts.push(`--- Attached: ${f.name} ---\n${content}\n--- End ${f.name} ---`);}
+  });
+  return{text:textParts.length?'\n\n[ATTACHMENTS]\n'+textParts.join('\n\n'):'',images};
+}
+
+function makeAttachmentPreviews(snapshotAttached){
+  if(!snapshotAttached||!snapshotAttached.length)return'';
+  return snapshotAttached.map(f=>{
+    if(f.kind==='img')return`<div class="att-preview-card"><img class="att-img-thumb" src="${f.content}" alt="${f.name}"/><div class="att-preview-info"><div class="att-preview-name">${escHtml(f.name)}</div><div class="att-preview-meta">${formatBytes(f.size)}</div><span class="att-status-badge ok">🖼 Vision</span></div></div>`;
+    const icon=getFileIcon(f.name);const excerpt=f.content?f.content.replace(/\[.*?\]\n*/g,'').trim().slice(0,100):'';
+    const meta=f.pages?`${f.pages}pp · ${formatBytes(f.size)}`:f.sheets?`${f.sheets} sheets · ${formatBytes(f.size)}`:formatBytes(f.size);
+    return`<div class="att-preview-card"><div class="att-preview-icon">${icon}</div><div class="att-preview-info"><div class="att-preview-name">${escHtml(f.name)}</div><div class="att-preview-meta">${meta}</div>${excerpt?`<div class="att-preview-excerpt">${escHtml(excerpt)}…</div>`:''}<span class="att-status-badge ok">✓ Sent to AI</span></div></div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════
+// MARKDOWN / FORMAT
+// ════════════════════════════════════════════════════
+function fmt(s){
+  s=s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  s=s.replace(/```(\w*)\n?([\s\S]*?)```/g,(_,lang,code)=>{
+    const id='cb'+Math.random().toString(36).slice(2,8);
+    return`<div class="pre-wrap"><pre id="${id}"><code>${code.trim()}</code></pre><button class="copy-btn" onclick="copyCode('${id}')">copy</button></div>`;
+  });
+  s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+  s=s.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+  s=s.replace(/\*(.*?)\*/g,'<em>$1</em>');
+  s=s.replace(/^### (.+)$/gm,'<h3>$1</h3>');
+  s=s.replace(/^## (.+)$/gm,'<h2>$1</h2>');
+  s=s.replace(/^# (.+)$/gm,'<h1>$1</h1>');
+  s=s.replace(/^\- (.+)$/gm,'<li>$1</li>');
+  s=s.replace(/(<li>.*<\/li>\n?)+/g,m=>`<ul>${m}</ul>`);
+  s=s.replace(/\n/g,'<br>');
+  return s;
+}
+function copyCode(id){const el=document.getElementById(id);if(!el)return;navigator.clipboard.writeText(el.innerText).then(()=>{const btn=el.parentElement.querySelector('.copy-btn');if(btn){btn.textContent='copied!';setTimeout(()=>btn.textContent='copy',2000);}});}
+
+// ════════════════════════════════════════════════════
+// DOC CARD
+// ════════════════════════════════════════════════════
+function detectDocRequest(t){return/\b(report|document|write|create|generate|draft|summary|plan)\b/i.test(t);}
+function detectCodeRequest(t){return/\b(code|script|function|program|python|javascript|sql|bash)\b/i.test(t);}
+function detectCodeLang(t){
+  if(/python/i.test(t))return{lang:'python',ext:'py'};
+  if(/javascript|js/i.test(t))return{lang:'javascript',ext:'js'};
+  if(/sql/i.test(t))return{lang:'sql',ext:'sql'};
+  if(/bash|shell/i.test(t))return{lang:'bash',ext:'sh'};
+  return{lang:'code',ext:'txt'};
+}
+function extractCodeBlocks(text){const blocks=[];const re=/```(\w*)\n?([\s\S]*?)```/g;let m;while((m=re.exec(text))!==null){blocks.push({lang:m[1]||'code',code:m[2].trim()});}return blocks;}
+function downloadText(filename,content){const blob=new Blob([content],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();URL.revokeObjectURL(a.href);}
+function addDocCard(filename,content,container){
+  const card=document.createElement('div');card.className='doc-card';
+  const isCode=filename.match(/\.(py|js|ts|html|css|sh|sql|java|rb|go|rs|php)$/);
+  const icon=isCode?'💻':'📄';const words=content.split(/\s+/).length;const lines=content.split('\n').length;
+  card.innerHTML=`<div class="doc-card-header"><div class="doc-card-icon">${icon}</div><div class="doc-card-info"><div class="doc-card-name">${escHtml(filename)}</div><div class="doc-card-meta">${isCode?lines+' lines':words+' words'} · Ready to download</div></div></div><div class="doc-card-actions"></div>`;
+  const actions=card.querySelector('.doc-card-actions');
+  const dlBtn=document.createElement('button');dlBtn.className='doc-btn primary';dlBtn.textContent='⬇ Download';dlBtn.onclick=()=>downloadText(filename,content);
+  actions.appendChild(dlBtn);container.appendChild(card);
+}
+
+// ════════════════════════════════════════════════════
+// ATTACH DROPDOWN
+// ════════════════════════════════════════════════════
+function toggleDrop(){const d=$('attachDrop'),b=$('attachBtn');const o=d.classList.toggle('open');b.classList.toggle('active',o);}
+document.addEventListener('click',e=>{if(!e.target.closest('.attach-wrap')){$('attachDrop').classList.remove('open');$('attachBtn').classList.remove('active');}});
+function closeDrop(){$('attachDrop').classList.remove('open');$('attachBtn').classList.remove('active');}
+function triggerImg(){closeDrop();$('imgInput').click();}
+function triggerFile(){closeDrop();$('fileInput').click();}
+function clearFiles(){attached=[];renderChips();closeDrop();}
+
+// ════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════
+function initApp(){
+  loadApiKeys();
+  loadAgents();
+  renderAgentList();
+  isGeneralChat=true;
+  clearChat();
+}
+
+// Close modals on overlay click
+['editAgentOverlay','createAgentOverlay','apiKeysOverlay'].forEach(id=>{
+  $(id).addEventListener('click',e=>{if(e.target===$(id)){
+    if(id==='editAgentOverlay')closeEditModal();
+    else if(id==='createAgentOverlay')closeCreateModal();
+    else if(id==='apiKeysOverlay')closeApiKeysModal();
+  }});
+});
+
+initApp();
+</script>
+</body>
+</html>
